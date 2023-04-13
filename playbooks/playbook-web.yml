@@ -1,0 +1,144 @@
+---
+- hosts: "web"
+  become: true
+  gather_facts: no
+  vars:
+    mysql_psswrd: "1q@W3e4r"
+    mysql_db: "wordpress"
+    mysql_usr: "wordpress_usr"
+    mysql_usr_psswrd: "!Q2w3e4r"
+  tasks: 
+
+# install MySQL
+  - name: Download MySQL Community Repo
+    get_url:
+      url: http://repo.mysql.com/mysql-community-release-el7-7.noarch.rpm
+      dest: /tmp
+
+  - name: Install MySQL Community Repo
+    command: /usr/bin/rpm -ivh /tmp/mysql-community-release-el7-7.noarch.rpm
+ 
+  - name: Install MySQL Server
+    yum: 
+      name: mysql-server
+      state: present
+
+  - name: Install MySQL-python
+    yum: 
+      name: MySQL-python
+      state: present
+
+  - name: START/ENABLE MYSQL
+    service: 
+      name: mysqld
+      state: started
+      enabled: yes 
+
+  - name: SET ROOT PASSWD
+    mysql_user:
+      name: root
+      password: "{{ mysql_psswrd }}"
+
+  - name: REMOVE ANON ACC
+    mysql_user:
+      name: ''
+      host_all: yes
+      state: absent
+      login_user: root
+      login_password: "{{ mysql_psswrd }}"
+
+  - name: REMOVE TEST DB
+    mysql_db:
+      name: test
+      state: absent
+      login_user: root
+      login_password: "{{ mysql_psswrd }}"
+
+  - name: CREATE DB
+    mysql_db:
+      name: "{{ mysql_db }}"
+      state: present
+      login_user: root
+      login_password: "{{ mysql_psswrd }}"
+
+  - name: CREATE USER MYSQL FOR DB
+    mysql_user:
+      name: "{{ mysql_usr }}"
+      password: "{{ mysql_usr_psswrd }}"
+      priv: "{{ mysql_db }}.*:ALL"
+      state: present
+      login_user: root
+      login_password: "{{ mysql_psswrd }}"
+
+  - name: RESTART MYSQL
+    service: 
+      name: mysqld
+      state: restarted
+
+# install apache2
+  - name: INSTALL APACHE2
+    yum:
+      name: httpd
+      state: present
+
+# prepeare apache2
+  - name: CREATE DIR
+    file:
+      path: "/var/www/html"
+      state: directory
+      owner: apache
+      group: apache
+      mode: '0755'
+
+  - name: START/ENABLE APACHE2
+    service: 
+      name: httpd
+      state: started
+      enabled: yes
+
+  # prepeare WordPress 
+  - name: GET WP
+    unarchive:
+      src: https://wordpress.org/latest.tar.gz
+      dest: "/var/www/html"
+      remote_src: yes
+      creates: "/var/www/html/wordpress"
+    
+  - name: RECHANG OWNER
+    file:
+      path: "/var/www/html"
+      state: directory
+      recurse: yes
+      owner: apache
+      group: apache
+
+  - name: COPY site.conf 
+    copy:
+      src: web/site.conf
+      dest: /etc/httpd/conf.d/
+
+  - name: COPY site.conf 
+    copy:
+      src: web/httpd.conf
+      dest: /etc/httpd/conf/
+
+  - name: Copy bckp script
+    copy:
+      src: 'web/bckp.sh'
+      dest: /usr/local/bin/
+      owner: root
+      mode: 'preserve'
+
+  - name: Create /var/bckp
+    file:
+      path: /var/bckp
+      mode: '0755'
+      owner: root
+      state: directory
+
+  - name: Create cron job
+    cron:
+      name: 'hourly_bckp_bases'
+      special_time: hourly
+      user: root
+      job: '/usr/local/bin/bckp.sh'

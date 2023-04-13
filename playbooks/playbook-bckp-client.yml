@@ -1,0 +1,26 @@
+---
+- hosts: "all"
+  become: true
+  gather_facts: yes
+  tasks:
+  
+  - name: create bckp dir
+    file:
+      path: /var/bckp/
+      state: directory
+      owner: root
+      group: root
+      mode: '0755'
+
+  - name: Generate an OpenSSH keypair
+    openssh_keypair:
+      path: /root/.ssh/id_rsa
+      owner: root
+      group: root
+      force: True
+
+  - name: Transfer key from clnt to host
+    fetch:
+      src: /root/.ssh/id_rsa.pub
+      dest: files/keys/{{ ansible_hostname }}-authorized_keys
+      flat: true

@@ -1,0 +1,21 @@
+---
+- hosts: "bckp"
+  become: true
+  gather_facts: yes
+  tasks:
+
+  - name: create backup dir
+    file:
+      path: /var/backup/
+      state: directory
+      owner: root
+      group: root
+      mode: '0755'
+
+  - name: COPY authorized_keys
+    assemble:
+      remote_src: no
+      src: keys/
+      dest: /root/.ssh/authorized_keys
+
+       

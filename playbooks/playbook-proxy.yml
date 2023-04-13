@@ -1,0 +1,65 @@
+---
+- hosts: "proxy"
+  become: true
+  gather_facts: no
+
+  tasks: 
+
+# install nginx
+  - name: INSTALL NGINX
+    yum:
+      name: nginx
+      state: present
+
+  - name: COPY site.lc.conf 
+    copy:
+      src: proxy/site.lc.conf
+      dest: /etc/nginx/conf.d/
+
+  - name: COPY nginx.conf 
+    copy:
+      src: proxy/nginx.conf
+      dest: /etc/nginx/
+
+  - name: Create /etc/nginx/ssl
+    file:
+      path: /etc/nginx/ssl
+      mode: '0755'
+      owner: root
+      group: root
+      state: directory
+
+  - name: COPY crt
+    copy:
+      src: proxy/ssl/
+      dest: /etc/nginx/ssl/
+
+  - name: START/ENABLE NGINX
+    service: 
+      name: nginx
+      state: started
+      enabled: yes
+
+  - name: Copy bckp script
+    copy:
+      src: proxy/bckp.sh
+      dest: /usr/local/bin/
+      owner: root
+      mode: 'preserve'
+
+  - name: Create cron job
+    cron:
+      name: "hourly_bckp"
+      user: root
+      special_time: "hourly"
+      job: "/usr/local/bin/bckp.sh"
+      cron_file: "hourly_bckp"
+
+  - name: COPY iptables
+    copy:
+      src: proxy/iptables
+      dest: /etc/sysconfig/
+
+  - name: Apply iptables
+    shell: |
+        iptables-restore < /etc/sysconfig/iptables

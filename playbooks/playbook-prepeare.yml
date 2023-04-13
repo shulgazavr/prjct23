@@ -1,0 +1,35 @@
+---
+- hosts: "all"
+  become: true
+  gather_facts: no
+
+  tasks: 
+# prepeare OS
+  - name: change sshd_config
+    lineinfile:
+      path: /etc/ssh/sshd_config
+      regexp: "PasswordAuthentication no"
+      line: "PasswordAuthentication yes"
+      state: present
+
+  - name: change ssh conf
+    lineinfile:
+      firstmatch: yes
+      path: /etc/ssh/ssh_config
+      insertafter: "^Host \\*\n"
+      line: "StrictHostKeyChecking no\nUserKnownHostsFile=/dev/null"
+
+  - name: RESTART SSHD
+    service: 
+      name: sshd
+      state: restarted
+      enabled: yes
+
+  - name: INSTALL UTILS
+    yum:
+      name: 
+        - epel-release
+        - mc
+        - wget
+        - curl
+      state: present
